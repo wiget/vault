@@ -30,8 +30,14 @@ import (
 	autopilot "github.com/hashicorp/raft-autopilot"
 	snapshot "github.com/hashicorp/raft-snapshot"
 	raftboltdb "github.com/hashicorp/vault/physical/raft/logstore"
+	"github.com/hashicorp/vault/sdk/helper/consts"
+	"github.com/hashicorp/vault/sdk/helper/jsonutil"
+	"github.com/hashicorp/vault/sdk/helper/tlsutil"
+	"github.com/hashicorp/vault/sdk/logical"
+	"github.com/hashicorp/vault/sdk/physical"
 	"github.com/hashicorp/vault/vault/cluster"
 	"github.com/hashicorp/vault/vault/seal"
+	bolt "go.etcd.io/bbolt"
 )
 
 // EnvVaultRaftNodeID is used to fetch the Raft node ID from the environment.
@@ -364,7 +370,13 @@ func NewRaftBackend(conf map[string]string, logger log.Logger) (physical.Backend
 		}
 
 		// Create the backend raft store for logs and stable storage.
-		store, err := raftboltdb.NewBoltStore(filepath.Join(path, "raft.db"))
+		raftOptions := raftboltdb.Options{
+			Path: filepath.Join(path, "raft.db"),
+			BoltOptions: &bolt.Options{
+				FreelistType: bolt.FreelistMapType,
+			},
+		}
+		store, err := raftboltdb.New(raftOptions)
 		if err != nil {
 			return nil, err
 		}
